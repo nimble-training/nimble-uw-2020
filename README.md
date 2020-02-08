@@ -3,7 +3,7 @@ Materials for NIMBLE workshop at the University of Washington, February 12, 2020
 
 All materials for the workshop are here. If you're familiar with Git/Github, you already know how to get all the materials on your computer. If you're not, simply click [here](https://github.com/nimble-training/nimble-uw-2020/archive/master.zip).
 
-You can see logistical information and an outline of the workshop content [here](overview.Rmd).
+Get started [here](https://htmlpreview.github.io/?https://github.com/nimble-training/nimble-uw-2020/blob/master/overview_slides.html) with logistical information and an outline of the workshop content.
 
 Location: 203 Fishery Sciences on the UW campus
 Time: 8 am - 12 noon, Wed. February 12
