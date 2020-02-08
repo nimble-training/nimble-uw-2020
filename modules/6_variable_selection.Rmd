@@ -1,0 +1,216 @@
+---
+title: "Variable selection"
+subtitle: "UW 2020 short course"
+author: "NIMBLE Development Team"
+output:
+  html_document:
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      cache = FALSE,
+                      dev = 'png') # Reduce size from plots with large samples
+
+library(nimble)
+source("occupancy_setup.R")
+```
+
+Bayesian variable selection
+=====
+
+- You have many candidate explanatory variables.
+- Bayesian approach is to have a probability that a variable is included in the model.
+- Really this is a probability that the coefficient is $\ne 0$.
+- BUGS/JAGS implementation is with indicator variables.
+
+```
+  logit(psi[i]) <- beta0 + ind * beta1 * vegHt[i]
+```
+
+- This has problems: when `ind` is 0, `beta1` follows its prior, until it hits a reasonable value for beta1 that allows `ind` equal to 1 to be accepted.
+- "Solution": informative priors
+
+Solution!: Reversible Jump MCMC
+=====
+
+- RJMCMC is a method for sampling across different models.
+- Specifically it is about sampling between different numbers of dimensions.
+- We don't change the actual nimble model object, but we turn on and off which dimensions are sampled.
+- Implementation, like all samplers, is written using `nimbleFunction`s.
+- Reversible jump for variable selection is straightforward.
+- In general, RJ requires one to figure out a way to propose reasonable parameter values when moving between models. Hard!
+
+
+RJMCMC for variable selection in nimble
+=====
+
+- Update an MCMC configuration to use RJMCMC.
+
+```{r}
+occ_model_sel <- occ_model$newModel(replicate = TRUE)
+Cocc_model_sel <- compileNimble(occ_model_sel)
+
+conf_sel <- configureMCMC(occ_model_sel)
+configureRJ(conf_sel,
+            targetNodes = 'beta1',
+            priorProb = 0.5,
+            control = list(mean = 0, scale = 2))
+occ_MCMC_sel <- buildMCMC(conf_sel)
+
+Cocc_MCMC_sel <- compileNimble(occ_MCMC_sel, project = occ_model_sel)
+```
+
+Run the RJMCMC
+=====
+```{r, fig.cap='', fig.height=6, fig.width=10}
+samples_sel <- runMCMC(Cocc_MCMC_sel, niter = 2500)
+
+mean(samples_sel[ , 'beta1'] != 0)
+
+par(mfrow = c(1,2))
+ts.plot(samples_sel[ , 'beta1'])
+ts.plot(samples_sel[ , 'beta1'] != 0)
+```
+
+A more interesting case
+=====
+
+Let's set the true beta1 equal to 1.
+
+```{r}
+set.seed(1)                   # So we all get same data set
+M <- 100                      # Number of sites
+J <- 3                        # Number of presence/absence measurements
+y <- matrix(NA, nrow = M, ncol = J) # to contain the obs. data
+
+# Create a covariate called vegHt
+vegHt <- sort(runif(M, -1, 1)) # sort for graphical convenience
+
+# Choose parameter values for occupancy model and compute occupancy
+beta0 <- 0                    # Logit-scale intercept
+beta1 <- 1                   # Logit-scale slope for vegHt
+psi <- plogis(beta0 + beta1 * vegHt) # Occupancy probability
+# plot(vegHt, psi, ylim = c(0,1), type = "l", lwd = 3) # Plot psi relationship
+
+# Now visit each site and observe presence/absence perfectly
+z <- rbinom(M, 1, psi)        # True presence/absence
+
+wind <- array(runif(M * J, -1, 1), dim = c(M, J))
+
+# Choose parameter values for measurement error model and compute detectability
+alpha0 <- -2                        # Logit-scale intercept
+alpha1 <- -3                        # Logit-scale slope for wind
+p <- plogis(alpha0 + alpha1 * wind) # Detection probability
+# plot(p ~ wind, ylim = c(0,1))     # Look at relationship
+
+# Take J = 3 presence/absence measurements at each site
+for(j in 1:J) {
+  y[,j] <- rbinom(M, z, p[,j])
+}
+
+time <- matrix(rep(as.character(1:J), M), ncol = J, byrow = TRUE)
+hab <- c(rep("A", 33), rep("B", 33), rep("C", 34))  # Must have M = 100
+
+# Bundle and summarize data set
+occupancy_data2 <- list(y = y, 
+                            vegHt = vegHt,
+                            wind = wind,
+                            M = nrow(y),
+                            J = ncol(y),
+                            XvegHt = seq(-1, 1, length.out=100),
+                            Xwind = seq(-1, 1, length.out=100))
+                            
+zst <- apply(y, 1, max)        # Avoid data/model/inits conflict
+inits_saved2 <- occupancy_inits()
+```
+
+Now run again.
+
+```{r, fig.cap='', fig.height=6, fig.width=10}
+occ_model_sel <- nimbleModel(occ_code,
+                        constants = occupancy_data2,
+                        inits = inits_saved2)
+Cocc_model_sel <- compileNimble(occ_model_sel)
+
+conf_sel <- configureMCMC(occ_model_sel)
+configureRJ(conf_sel,
+            targetNodes = 'beta1',
+            priorProb = 0.5,
+            control = list(mean = 0, scale = 2))
+occ_MCMC_sel <- buildMCMC(conf_sel)
+
+Cocc_MCMC_sel <- compileNimble(occ_MCMC_sel, project = occ_model_sel)
+
+samples_sel <- runMCMC(Cocc_MCMC_sel, niter = 2500)
+
+mean(samples_sel[ , 'beta1'] != 0)
+
+par(mfrow = c(1,2))
+ts.plot(samples_sel[ , 'beta1'])
+ts.plot(samples_sel[ , 'beta1'] != 0)
+```
+
+Summary of RJMCMC
+=====
+
+- Mixing will generally be better than simply using an indicator function.
+- One can use RJ for variable selection in NIMBLE either with or without indicator functions.
+- Adaptation for coefficient samplers only occurs when the coefficient is "in the model".
+- Run time should be much faster *if* posterior probability of inclusion is not large. 
+- Tuning parameter of RJ proposal scale (sd) must be chosen.
+
+Using indicator variables without RJMCMC
+=====
+
+For reference, here is how one would do it with an indicator variable and without RJMCMC. How much worse this is will depend on the posterior probability of inclusion and the priors on the coefficient being considered for inclusion.
+
+In this case, the posterior probability of inclusion is very high so it probably won't make a big difference.
+
+```{r, fig.height=6, fig.width=10}
+
+occ_code_ind <- nimbleCode({
+  # Priors
+  mean.p ~ dunif(0, 1)         # Detection intercept on prob. scale
+  alpha0 <- logit(mean.p)      # Detection intercept
+  alpha1 ~ dunif(-20, 20)      # Detection slope on wind
+  mean.psi ~ dunif(0, 1)       # Occupancy intercept on prob. scale
+  beta0 <- logit(mean.psi)     # Occupancy intercept
+  beta1 ~ dunif(-20, 20)       # Occupancy slope on vegHt
+  
+  # Likelihood
+  for (i in 1:M) {
+    # True state model for the partially observed true state
+    z[i] ~ dbern(psi[i])      # True occupancy z at site i
+    logit(psi[i]) <- beta0 + ind * beta1 * vegHt[i]
+    for (j in 1:J) {
+      # Observation model for the actual observations
+      y[i,j] ~ dbern(p.eff[i,j])    # Detection-nondetection at i and j
+      p.eff[i,j] <- z[i] * p[i,j]   # 'straw man' for WinBUGS
+      logit(p[i,j]) <- alpha0 + alpha1 * wind[i,j]
+    }
+  }
+  ind ~ dbern(0.5)
+  # Derived quantities are removed.
+}
+)
+
+occ_model_ind <- nimbleModel(occ_code_ind,
+                        constants = occupancy_data2, 
+                        inits = c(inits_saved2, ind = 1))
+Cocc_model_ind  <- compileNimble(occ_model_ind )
+
+occ_MCMC_ind  <- buildMCMC(occ_model_ind )
+
+
+Cocc_MCMC_ind  <- compileNimble(occ_MCMC_ind , project = occ_model_ind )
+
+samples_ind <- runMCMC(Cocc_MCMC_ind, niter = 2500)
+
+par(mfrow = c(1,3))
+ts.plot(samples_ind[ , 'ind'])
+ts.plot(samples_ind[ , 'beta1'])
+ts.plot(samples_ind[ , 'beta1'] * samples_ind[ , 'ind'])
+
+```
+

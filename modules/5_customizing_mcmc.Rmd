@@ -1,0 +1,129 @@
+---
+title: "Customizing an MCMC"
+subtitle: "UW 2020 short course"
+author: "NIMBLE Development Team"
+output:
+  html_document:
+    code_folding: show
+---
+
+```{r chunksetup, include=FALSE} 
+# include any code here you don't want to show up in the document,
+# e.g. package and dataset loading
+library(methods)  # otherwise new() not being found - weird
+library(nimble)
+source("occupancy_setup.R")
+```
+
+# NIMBLE's default MCMC
+
+Let's see the results from running NIMBLE's default MCMC again:
+
+```{r, mcmc-default, fig.height=12, fig.width=10, fig.cap=''}
+occ_model <- nimbleModel(occ_code,
+                        constants = occupancy_data,
+                        inits = inits_saved)
+
+occ_MCMC <- buildMCMC(occ_model)
+
+Cocc_model <- compileNimble(occ_model)
+Cocc_MCMC <- compileNimble(occ_MCMC, project = occ_model)
+
+t1 <- system.time(samples1 <- runMCMC(Cocc_MCMC, niter = 2500, nburnin = 500))
+
+library(coda, warn.conflicts = FALSE)
+effectiveSize(samples1)
+effectiveSize(samples1) / t1['elapsed']
+plot(as.mcmc(samples1))
+```
+
+Note that the ESS per time counted the burn-in time, which we might want to omit if comparing pure efficiency of the samplers.
+
+# Customizing samplers: examining the defaults
+
+One of NIMBLE's most important features is that users can easily modify the MCMC algorithm used for their model. The easiest thing to do is to start with NIMBLE's default MCMC and then make modifications. 
+
+```{r default-config}
+# Explicitly set up the MCMC configuration to see the defaults.
+conf <- configureMCMC(occ_model)
+conf
+conf$printSamplers()
+```
+
+# Customizing samplers: modifying the samplers
+
+```{r customize-mcmc, fig.height=12, fig.width=10, fig.cap=''}
+conf <- configureMCMC(occ_model)
+params <- occ_model$getNodeNames(topOnly = TRUE)
+conf$removeSamplers(params)
+for(p in params)
+    conf$addSampler(p, type = 'slice')
+
+occ_MCMC <- buildMCMC(conf)
+
+## We need 'resetFunctions' because we are rebuilding the MCMC for
+## an existing model for which we've already done some compilation.
+Cocc_MCMC <- compileNimble(occ_MCMC, project = occ_model, resetFunctions = TRUE)
+
+t2 <- system.time(samples2 <- runMCMC(Cocc_MCMC, niter = 2500, nburnin = 500))
+
+effectiveSize(samples2)
+effectiveSize(samples2) / t2['elapsed']
+plot(as.mcmc(samples2))
+
+```
+
+# Blocking parameters
+
+Often a key factor that reduces MCMC performance is dependence between parameters that limits the ability of univariate samplers to move very far. A standard strategy is to sample correlated parameters in blocks. Unlike many other MCMC engines, NIMBLE makes it easy for users to choose what parameters to sample in blocks.
+
+Let's look at posterior correlation here.
+
+```{r, fig.cap=''}
+plot(as.data.frame(samples1))
+```
+
+So we might consider blocking `alpha1` and `mean.p`. 
+
+# Using NIMBLE's RW_block sampler
+
+
+```{r blocking, fig.height=12, fig.width=10, fig.cap=''}
+conf <- configureMCMC(occ_model)
+
+block <- c('alpha1','mean.p')
+for(p in block)
+    conf$removeSamplers(p)
+conf$addSampler(block, type = 'RW_block')
+
+occ_MCMC <- buildMCMC(conf)
+Cocc_MCMC <- compileNimble(occ_MCMC, project = occ_model, resetFunctions = TRUE)
+
+t3 <- system.time(samples3 <- runMCMC(Cocc_MCMC, niter = 2500, nburnin = 500))
+effectiveSize(samples3)
+effectiveSize(samples3) / t3['elapsed']
+plot(as.mcmc(samples3))
+```
+
+# Blocking parameters - getting the initial proposal scale right
+
+Note the warning NIMBLE emitted. The Metropolis-Hastings adaptation scheme can struggle when blocked parameters are on different scales but the proposal scales are initialized to be the same. 
+
+```{r blocking2, fig.height=12, fig.width=10, fig.cap=''}
+
+conf <- configureMCMC(occ_model)
+
+block <- c('alpha1','mean.p')
+for(p in block)
+    conf$removeSamplers(p)
+conf$addSampler(block, type = 'RW_block',
+                       control = list(propCov = diag(c(.1^2, .01^2))))
+                                      
+occ_MCMC <- buildMCMC(conf)
+Cocc_MCMC <- compileNimble(occ_MCMC, project = occ_model, resetFunctions = TRUE)
+
+t4 <- system.time(samples4 <- runMCMC(Cocc_MCMC, niter = 2500, nburnin = 500))
+effectiveSize(samples4)
+effectiveSize(samples4) / t4['elapsed']
+plot(as.mcmc(samples4))
+```

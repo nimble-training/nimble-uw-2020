@@ -1,0 +1,224 @@
+---
+title: "User-defined distributions, plus vectorization"
+subtitle: "UW 2020 short course"
+author: "NIMBLE Development Team"
+output:
+  html_document:
+    code_folding: show
+---
+
+
+```{r echo=FALSE, include=FALSE}
+library(nimble)
+library(methods)  # otherwise new() not being found - weird
+source("occupancy_setup.R")
+```
+
+Original code
+=====
+
+```{r, eval=FALSE}
+occ_code <- nimbleCode({
+  # Priors
+  mean.p ~ dunif(0, 1)         # Detection intercept on prob. scale
+  alpha0 <- logit(mean.p)      # Detection intercept
+  alpha1 ~ dunif(-20, 20)      # Detection slope on wind
+  mean.psi ~ dunif(0, 1)       # Occupancy intercept on prob. scale
+  beta0 <- logit(mean.psi)     # Occupancy intercept
+  beta1 ~ dunif(-20, 20)       # Occupancy slope on vegHt
+  
+  # Likelihood
+  for (i in 1:M) {
+    # True state model for the partially observed true state
+    z[i] ~ dbern(psi[i])      # True occupancy z at site i
+    logit(psi[i]) <- beta0 + beta1 * vegHt[i]
+    for (j in 1:J) {
+      # Observation model for the actual observations
+      y[i,j] ~ dbern(p.eff[i,j])    # Detection-nondetection at i and j
+      p.eff[i,j] <- z[i] * p[i,j]   # 'straw man' for WinBUGS
+      logit(p[i,j]) <- alpha0 + alpha1 * wind[i,j]
+    }
+  }
+  # Derived quantities are removed.
+})
+```
+
+Use a new distribution to marginalize over `z[i]`
+=====
+
+```{r}
+occ_code_marg <- nimbleCode({
+  # Priors
+  mean.p ~ dunif(0, 1)         # Detection intercept on prob. scale
+  alpha0 <- logit(mean.p)      # Detection intercept
+  alpha1 ~ dunif(-20, 20)      # Detection slope on wind
+  mean.psi ~ dunif(0, 1)       # Occupancy intercept on prob. scale
+  beta0 <- logit(mean.psi)     # Occupancy intercept
+  beta1 ~ dunif(-20, 20)       # Occupancy slope on vegHt
+  
+  # Likelihood
+  for (i in 1:M) {
+    # True state model for the partially observed true state
+    logit(psi[i]) <- beta0 + beta1 * vegHt[i]
+    y[i, 1:J] ~ dOcc(probOcc = psi[i], probDetect = p[i, 1:J])
+    for (j in 1:J) {
+      logit(p[i,j]) <- alpha0 + alpha1 * wind[i,j]
+    }
+  }
+}
+)
+```
+
+How to write a new distribution: dOcc
+=====
+
+Prob(Detection history) = Prob(Detection history | Occupied) Prob(Occupied) +
+Prob(Detection history | Unoccupied) Prob(Unoccupied)
+
+$P(y[i,1:J] | \psi, p[i, 1:J]) = \psi \prod_{j=1}^J \mbox{dbern}(y[i,j] | p[i,j]) + (1 -  \psi) I_\mbox{all} (y[i, j] = 0)$
+
+
+
+```{r}
+dOcc <- nimbleFunction(
+  run = function(x = double(1),
+                 probOcc = double(0),
+                 probDetect = double(1),
+                 log = logical(0, default = 0)) {
+    if (length(x) != length(probDetect))
+      stop("Length of data does not match length of detection vector.")
+    returnType(double(0))
+    logProb_x_given_occupied <- sum(dbinom(x,
+                                           prob = probDetect, 
+                                           size = 1,
+                                           log = TRUE))
+    prob_x_given_unoccupied <- sum(x) == 0
+    prob_x <- exp(logProb_x_given_occupied) * probOcc + 
+      prob_x_given_unoccupied * (1 - probOcc)
+    if (log)
+      return(log(prob_x))
+    return(prob_x)
+  }
+)
+```
+
+```{r, scopefix, echo=FALSE}
+# not clear why dOcc() not being put into global
+# if this isn't done, registerDistributions fails to find dOcc in knitr
+assign('dOcc', dOcc, .GlobalEnv)
+
+# also, NIMBLE doesn't need rOcc, but having trouble compiling the Rmd without it
+rOcc <- nimbleFunction(
+    run = function(n = double(0),
+                 probOcc = double(0),
+                 probDetect = double(1)) {
+        returnType(double(1))
+        if(n != 1) stop("not set up to handle multiple random draws.")
+    len <- length(probDetect)
+    z <- rbinom(len, 1, probOcc)
+    x <- rbinom(len, 1, z * probDetect)
+    return(x)
+    })
+assign('rOcc', rOcc, .GlobalEnv)
+
+```
+
+
+Key points:
+
+- A `nimbleFunction` is defined by providing an R function as an argument.
+- The R function has special syntax for argument types and return type.
+- The `nimbleFunction` can be compiled if it is limited to basic math, distributions, for loops, if-then-else, and a few other basics.
+- "compiled" means that NIMBLE will generate C++, compile that, and make it available for use from R.
+
+
+Run MCMC with the new version:
+=====
+
+```{r, fig.height=12, fig.width=10, fig.cap=''}
+occ_model_marg <- nimbleModel(occ_code_marg,
+                         constants = occupancy_data,
+                         inits = inits_saved)
+occ_MCMC_marg <- buildMCMC(occ_model_marg)
+Cocc_model_marg <- compileNimble(occ_model_marg)
+Cocc_MCMC_marg <- compileNimble(occ_MCMC_marg, project = occ_model_marg)
+t_marg <- system.time(samples_marg <- runMCMC(Cocc_MCMC_marg, niter = 2500,
+                      nburnin = 500))
+
+library(coda, warn.conflicts = FALSE)
+effectiveSize(samples_marg)
+effectiveSize(samples_marg) / t_marg['elapsed']
+plot(as.mcmc(samples_marg))
+```
+
+
+Additional comments on user-defined distributions
+=====
+
+First we write nimbleFunctions for the density and (optionally) simulation functions. Note the naming is analogous to how probability distributions are handled in R. 
+
+  - The 'd' function should have *log* as its last argument, a binary argument for whether the log density is returned or not. 
+  - The 'r' function should have *n* as its first argument but need only work for ```n=1```.
+
+The User Manual also shows how you could write CDF ('p') and inverse CDF ('q') such that you could make use of truncation with your distribution, but for standard usage all you need is the density ('d') and simulation ('r') functions (and strictly speaking you don't need the simulation function if you won't use any algorithms relying on that).
+
+If you'd like to allow for different parameterizations for your distribution, and other advanced features you can `register` the distribution with NIMBLE via `registerDistributions()` but in many cases (including this one) that is not necessary. NIMBLE will just find the distribution automatically.
+
+
+Vectorizing calculations
+=====
+
+Vectorization in NIMBLE models:
+
+- Can make code more compact.
+- Can make model and MCMC building and compiling faster.
+- Can improve MCMC efficiency, but sometimes not by much.
+- Can hurt MCMC efficiency if done in the wrong places.
+   - Can cause additional dependencies and therefore additional calculations in MCMC steps
+
+
+```{r, fig.height=12, fig.width=10, fig.cap=''}
+occ_code_vec <- nimbleCode({
+  # Priors
+  mean.p ~ dunif(0, 1)         # Detection intercept on prob. scale
+  alpha0 <- logit(mean.p)      # Detection intercept
+  alpha1 ~ dunif(-20, 20)      # Detection slope on wind
+  mean.psi ~ dunif(0, 1)       # Occupancy intercept on prob. scale
+  beta0 <- logit(mean.psi)     # Occupancy intercept
+  beta1 ~ dunif(-20, 20)       # Occupancy slope on vegHt
+  
+  # Likelihood
+  logit(p[1:M,1:J]) <- alpha0 + alpha1 * wind[1:M,1:J]
+  for (i in 1:M) {
+    # True state model for the partially observed true state
+    z[i] ~ dbern(psi[i])      # True occupancy z at site i
+    logit(psi[i]) <- beta0 + beta1 * vegHt[i]
+    p.eff[i, 1:J] <- z[i] * p[i, 1:J]   # 'straw man' for WinBUGS
+    for (j in 1:J) {
+      # Observation model for the actual observations
+      y[i,j] ~ dbern(p.eff[i,j])    # Detection-nondetection at i and j
+    }
+  }
+  # Derived quantities are removed.
+}
+)
+```
+
+Run MCMC with the vectorized version:
+=====
+
+```{r}
+occ_mod_vec <- nimbleModel(occ_code_vec,
+                         constants = occupancy_data,
+                         inits = inits_saved)
+occ_MCMC_vec <- buildMCMC(occ_mod_vec)
+Cocc_mod_vec <- compileNimble(occ_mod_vec)
+Cocc_MCMC_vec <- compileNimble(occ_MCMC_vec, project = occ_mod_vec)
+t_vec <- system.time(samples_vec <- runMCMC(Cocc_MCMC_vec, niter = 2500,
+         nburnin = 500))
+
+effectiveSize(samples_vec)
+effectiveSize(samples_vec) / t_vec['elapsed']
+plot(as.mcmc(samples_vec))
+```
+

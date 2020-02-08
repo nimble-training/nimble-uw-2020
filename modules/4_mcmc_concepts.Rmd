@@ -1,0 +1,167 @@
+---
+title: "Understanding MCMC and assessing MCMC performance"
+subtitle: "UW 2020 short course"
+author: "NIMBLE Development Team"
+output:
+  html_document:
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      cache = FALSE)
+library(nimble)
+library(coda)
+```
+
+One-dimensional MCMC: generating a sequential sample 
+=====
+
+- MCMC generates a sequentially dependent (i.e., auto-correlated) sample whose stationary distribution is the "target" distribution (e.g. posterior), $p(\theta|y)$.
+
+- There are lots of ways to do this, all within the MCMC family of algorithms.
+
+- Often, one cycles through the parameters, sampling a parameter or set of parameters conditional on the other parameters and the data. (This is known generically as "Gibbs" sampling.)
+
+- Usually only the part of the total model density that involves a particular parameter(s) (e.g. intercept) needs to be calculated when sampling that parameter(s).
+
+- Some methods also use derivatives of $p(\theta|y)$. 
+
+- Different methods require different numbers of calculations per iteration, so some are slow and some are fast.
+
+- Different methods mix differently.
+
+- Mixing is how well they move around the distribution.
+
+Alternating dimensions and blocking dimensions
+=====
+
+Suppose we need a posterior sample for (intercept, slope).
+
+Two options:
+
+  1. Alternate:
+
+    - Sample slope while holding intercept fixed (conditioning).
+    - Sample intercept while holding slope fixed.
+
+     This is valid.
+    
+  2. Sample slope and intercept at the same time.  This is *blocking*.
+
+Conjugate samplers (also called "Gibbs")
+=====
+
+- Possible when we can write, e.g., P(intercept | slope, data) analytically.
+- This only works for particular prior-posterior combinations.
+- Despite sounding simple, there is some computational cost.
+- Both JAGS and NIMBLE use conjugate samplers by default when available.
+
+
+Other samplers in nimble
+=====
+- random-walk Metropolis-Hastings sampler (adaptive)
+- slice sampler
+- binary (for Bernoulli variables)
+- categorical (these are *costly*).
+- posterior predictive sampler (for no dependencies)
+- elliptical slice sampler (for certain MVN cases).
+- CAR (conditional autoregression model) normal sampler
+- CAR proper sampler
+- random-walk multinomial sampler (adaptive)
+- random-walk Dirichlet sampler (adaptive)
+- cross-level sampler
+- `RW_llFunction` A random-walk Metropolis-Hastings that calls any log-likelihood function you provide.
+- Particle MCMC samplers.
+
+Other samplers (not currently in NIMBLE)
+=====
+
+Samplers that use derivatives:
+
+- Hamiltonian Monte Carlo
+
+    - Good mixing but at very high computational cost.
+    
+- Langevin samplers
+
+    - Use one gradient evaluation to make a good MH proposal density.
+    
+These samplers will be supported in NIMBLE in the coming year.  They work now in development versions.
+
+Mixing and computation time are both important
+=====
+
+Mixing refers to how well the MCMC samples around the posterior ("target distribution").
+
+Computation time refers to the time taken by the MCMC.
+
+Efficiency = Effective sample size / computation time.
+
+Pace = 1/Efficiency
+
+Some samplers run quickly but produce very autocorrelated chains.
+
+Somes samplers produce less autocorrelated chains but run very slowly.
+
+
+What is Effective Sample Size (ESS)
+=====
+
+- *Effective sample size (ESS)* is the equivalent number of
+independent samples in an MCMC chain for one parameter.
+
+# What does "equivalent number of independent samples" mean?
+
+- If `x[i]` were drawn independently (m samples), we could say:
+
+$\mbox{Var}[\overline{x}] = \mbox{Var}[ \frac{1}{m} \sum_{i = 1}^m x[i] ]= \frac{\mbox{Var}[x[i]]}{m}$
+
+- Instead, we have
+
+$\mbox{Var}[\overline{x}] = \frac{\mbox{Var}[x[i]]}{\mbox{ESS}}$
+
+where ESS is the *Effective Sample Size*.
+
+coda provides `effectiveSize` to calculate this.
+
+In general the effective sample size is considerably smaller than the number of samples.
+
+Measuring MCMC performance: MCMC efficiency
+=====
+
+We define *MCMC efficiency* as
+
+$\frac{\mbox{ESS}}{\mbox{computation time}}$
+
+- This is the number of effectively independent samples generated per time.
+- ESS is different for every parameter.
+- Computation time is the same for every parameter: the total time.
+- We do not count setup steps like model building and compilation as
+  part of computation time.  Even
+  though these take time, we are more interested in the final MCMC
+  performance.
+- One needs a reasonable sample just to get a reasonable estimate of ESS.
+- We generally do not thin when comparing methods because thinning always removes some information from a sample.
+
+A single number: Minimum MCMC efficiency
+=====
+
+- We want a single number to measure the performance of an MCMC.
+- Often there are many fast-mixing parameters and one or a few
+slow-mixing ones.
+- We need all parameters to be mixed well to rely on results.
+- Therefore our single measure of efficiency is:
+
+**Net MCMC efficiency = Minimum MCMC efficiency over all parameters**
+
+Vats et al (2019; Biometrika) presents a method for a multivariate ESS that is worth considering.
+
+Why we don't care as much about mean MCMC efficiency
+=====
+
+- It is tempting to think mean (across parameters) of MCMC efficiency is a good measure of overall performance.
+- If you rely on mean efficiency, you could end up like the statistician who drowned in a river with an average depth of three feet.
+- If some parameters are mixing very well and others very poorly, one should be quite cautious about inference on the "well-mixed" ones, as the poor mixing of others indicates we haven't fully explored the posterior.
+
+

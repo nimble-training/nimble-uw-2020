@@ -1,0 +1,22 @@
+---
+title: "Exercises: MCMC and user-defined distributions"
+subtitle: "UW 2020 short course"
+author: "NIMBLE Development Team"
+output:
+  html_document:
+    code_folding: show
+---
+
+# Exercises
+
+ 1. Set up the model code and run an MCMC on a model of interest to you.
+
+ 2. Experiment with various MCMC samplers on a model of interest to you.
+
+ 3. Write a user-defined zero-inflated Poisson distribution and check that you can use it in a model. For a solution to this problem, please see [this example on our webpage](https://r-nimble.org/nimbleExamples/zero_inflated_poisson.html).
+
+ 4. Chat with me about your model of interest and using NIMBLE.
+
+
+
+

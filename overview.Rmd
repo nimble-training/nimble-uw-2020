@@ -125,7 +125,7 @@ Here are the modules we'll work through for this short course.
 
  - Programming algorithms in NIMBLE (90 minutes)
  
-    9. [Operating a NIMBLE model](modules/9_using_models_slides.html)
+    9. [Using and programming with models](modules/9_using_models_slides.html)
     10. [Writing your own MCMC sampler](modules/10_user_sampler_slides.html) 
     11. [Wrap up: participant models/discussion, calling external code, gradients/HMC, and more](modules/11_wrapup_slides.html)
 
