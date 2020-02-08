@@ -16,9 +16,7 @@ In summary, here are the steps.
 
 1. Install compiler tools on your system. [https://r-nimble.org/download](https://r-nimble.org/download) has more details on how to install *Rtools* on Windows and how to install the command line tools of *Xcode* on a Mac. Note that if you have packages requiring a compiler (e.g., *Rcpp*) on your computer, you should already have the compiler tools installed.
 
-2. Install the *nimble* package from CRAN in the usual fashion for an R package.
-
-More details (including troubleshooting tips) can also be found in Section 4 of the [NIMBLE manual](https://r-nimble.org/html_manual/cha-installing-nimble.html).
+2. Install the *nimble* package from CRAN in the usual fashion for an R package. More details (including troubleshooting tips) can also be found in Section 4 of the [NIMBLE manual](https://r-nimble.org/html_manual/cha-installing-nimble.html).
 
 3) To test that things are working please run the following code  in R:
 
@@ -29,5 +27,6 @@ code <- nimbleCode({
 })
 model <- nimbleModel(code)
 cModel <- compileNimble(model)
+```
 
 If that runs without error, you're all set. If not, please see the troubleshooting tips and email me directly if you can't get things going.  
