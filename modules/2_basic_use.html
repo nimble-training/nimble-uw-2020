@@ -465,7 +465,7 @@ inits_saved &lt;- occupancy_inits()</code></pre>
 <h1>Occupancy Example: 1. Build the model</h1>
 <pre class="r"><code>occ_model &lt;- nimbleModel(occ_code,
                         constants = occupancy_data, 
-                        inits = occupancy_inits())</code></pre>
+                        inits = inits_saved)</code></pre>
 <pre><code>## defining model...</code></pre>
 <pre><code>## Detected y as data within 'constants'.</code></pre>
 <pre><code>## Adding y as data for building model.</code></pre>
@@ -505,18 +505,6 @@ inits_saved &lt;- occupancy_inits()</code></pre>
 </ol>
 <pre class="r"><code>library(mcmcplots)
 mcmcplot(samples, dir = &quot;.&quot;, filename = &quot;occupancy_samples_mcmcplot&quot;)</code></pre>
-<pre><code>## 
-                                                                           
-Preparing plots for alpha1.  25% complete.</code></pre>
-<pre><code>## 
-                                                                           
-Preparing plots for beta1.  50% complete.</code></pre>
-<pre><code>## 
-                                                                           
-Preparing plots for mean.p.  75% complete.</code></pre>
-<pre><code>## 
-                                                                           
-Preparing plots for mean.psi.  100% complete.</code></pre>
 <p>Results that comes with these slides are <a href="orig_occupancy_samples_mcmcplot.html">here</a>.</p>
 <p>Results if you generated your own will be <a href="occupancy_samples_mcmcplot.html">here</a>.</p>
 <ol start="2" style="list-style-type: decimal">
@@ -526,8 +514,6 @@ Preparing plots for mean.psi.  100% complete.</code></pre>
 pdf(&quot;occupancy_samples_coda.pdf&quot;)
 plot(as.mcmc(samples))
 dev.off()</code></pre>
-<pre><code>## png 
-##   2</code></pre>
 <p>Results that comes with these slides are <a href="orig_occupancy_samples_coda.pdf">here</a>.</p>
 <p>Results if you generated your own will be <a href="occupancy_samples_coda.pdf">here</a>.</p>
 </div>
@@ -578,19 +564,19 @@ dev.off()</code></pre>
 ## 1. Empirical mean and standard deviation for each variable,
 ##    plus standard error of the mean:
 ## 
-##             Mean      SD  Naive SE Time-series SE
-## alpha1   -3.0296 0.59771 0.0044551       0.018517
-## beta1     3.1708 1.34628 0.0100346       0.058061
-## mean.p    0.1553 0.05217 0.0003889       0.001877
-## mean.psi  0.5209 0.13666 0.0010186       0.006322
+##             Mean      SD Naive SE Time-series SE
+## alpha1   -3.0259 0.58476 0.004359       0.016883
+## beta1     3.1653 1.33865 0.009978       0.057701
+## mean.p    0.1550 0.04896 0.000365       0.001727
+## mean.psi  0.5213 0.13500 0.001006       0.006365
 ## 
 ## 2. Quantiles for each variable:
 ## 
 ##              2.5%     25%     50%     75%   97.5%
-## alpha1   -4.32305 -3.4079 -2.9971 -2.6121 -1.9645
-## beta1     1.28965  2.2648  2.9079  3.7968  6.6074
-## mean.p    0.07016  0.1172  0.1487  0.1871  0.2739
-## mean.psi  0.29848  0.4226  0.5031  0.6046  0.8401</code></pre>
+## alpha1   -4.29679 -3.3950 -2.9838 -2.6277 -2.0083
+## beta1     1.30118  2.2426  2.8867  3.8403  6.4789
+## mean.p    0.07433  0.1202  0.1499  0.1846  0.2635
+## mean.psi  0.29533  0.4222  0.5070  0.6046  0.8179</code></pre>
 </div>
 <div id="other-notes" class="section level1">
 <h1>Other notes</h1>

@@ -174,7 +174,7 @@ inits_saved <- occupancy_inits()
 ```{r}
 occ_model <- nimbleModel(occ_code,
                         constants = occupancy_data, 
-                        inits = occupancy_inits())
+                        inits = inits_saved)
 ```
 
 `constants` here are what JAGS calls `data`. We'll see in a bit that in NIMBLE we prefer to distinguish `data` from `constants`. 
@@ -213,7 +213,7 @@ library(mcmcplots)
 mcmcplot(samples, dir = ".", filename = "occupancy_samples_mcmcplot")
 ```
 
-```{r echo = FALSE}
+```{r echo = FALSE, eval = FALSE}
 library(mcmcplots)
 mcmcplot(samples, dir = ".", filename = "orig_occupancy_samples_mcmcplot")
 ```
@@ -231,7 +231,7 @@ plot(as.mcmc(samples))
 dev.off()
 ```
 
-```{r echo = FALSE}
+```{r echo = FALSE, eval = FALSE}
 library(coda)
 pdf("orig_occupancy_samples_coda.pdf")
 plot(as.mcmc(samples))
