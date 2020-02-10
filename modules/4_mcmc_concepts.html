@@ -203,7 +203,7 @@ summary {
 <li><p>MCMC generates a sequentially dependent (i.e., auto-correlated) sample whose stationary distribution is the “target” distribution (e.g. posterior), <span class="math inline">\(p(\theta|y)\)</span>.</p></li>
 <li><p>There are lots of ways to do this, all within the MCMC family of algorithms.</p></li>
 <li><p>Often, one cycles through the parameters, sampling a parameter or set of parameters conditional on the other parameters and the data. (This is known generically as “Gibbs” sampling.)</p></li>
-<li><p>Usually only the part of the total model density that involves a particular parameter(s) (e.g. intercept) needs to be calculated when sampling that parameter(s).</p></li>
+<li><p>Usually only the part of the total model density that involves a particular parameter(s) needs to be calculated when sampling that parameter(s).</p></li>
 <li><p>Some methods also use derivatives of <span class="math inline">\(p(\theta|y)\)</span>.</p></li>
 <li><p>Different methods require different numbers of calculations per iteration, so some are slow and some are fast.</p></li>
 <li><p>Different methods mix differently.</p></li>

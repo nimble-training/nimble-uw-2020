@@ -23,7 +23,7 @@ One-dimensional MCMC: generating a sequential sample
 
 - Often, one cycles through the parameters, sampling a parameter or set of parameters conditional on the other parameters and the data. (This is known generically as "Gibbs" sampling.)
 
-- Usually only the part of the total model density that involves a particular parameter(s) (e.g. intercept) needs to be calculated when sampling that parameter(s).
+- Usually only the part of the total model density that involves a particular parameter(s) needs to be calculated when sampling that parameter(s).
 
 - Some methods also use derivatives of $p(\theta|y)$. 
 
