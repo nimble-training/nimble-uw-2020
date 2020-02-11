@@ -20,9 +20,9 @@ Distributions for use in ecological modeling, using analytic summation/integrati
 # Some other key functionality in NIMBLE
 
  - Dirichlet process and related models for Bayesian nonparametric mixture modeling
- - Calling out to external C/C++ or external R code in a nimbleFunction via `nimbleExternalCall` and `nimbleRcall`.
  - Conditional auto-regressive (CAR) models for spatial and other contexts
-
+ - Calling out to external C/C++ or external R code in a nimbleFunction via `nimbleExternalCall` and `nimbleRcall`.
+ 
 # Getting help with and contributing to NIMBLE
 
   - User manual ([html](https://r-nimble.org/html_manual/cha-welcome-nimble.html) or [pdf](https://r-nimble.org/manuals/NimbleUserManual.pdf)) 
@@ -34,7 +34,7 @@ Distributions for use in ecological modeling, using analytic summation/integrati
   - Provide us with examples we can post for others to use.
   - Help with development of NIMBLE: email nimble.stats@gmail.com or see [github.com/nimble-dev/nimble](https://github.com/nimble-dev/nimble)
 
-We try to be responsive on the the user support/discussion list, and welcome others to contribute answers as well. 
+We try to be responsive on the the user support/discussion list, and (heartily) welcome others to contribute answers as well. 
 
 # Ongoing work in NIMBLE
 

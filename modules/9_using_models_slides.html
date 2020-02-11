@@ -86,7 +86,7 @@ NIMBLE Development Team
 mc &lt;-<span class="st"> </span><span class="kw">nimbleCode</span>({
     intercept <span class="op">~</span><span class="st"> </span><span class="kw">dnorm</span>(<span class="dv">0</span>, <span class="dt">sd =</span> <span class="dv">1000</span>)
     slope <span class="op">~</span><span class="st"> </span><span class="kw">dnorm</span>(<span class="dv">0</span>, <span class="dt">sd =</span> <span class="dv">1000</span>)
-    sigma <span class="op">~</span><span class="st"> </span><span class="kw">dunif</span>(<span class="dv">0</span>, <span class="dv">100</span>)
+    sigma <span class="op">~</span><span class="st"> </span><span class="kw">dunif</span>(<span class="dv">0</span>, <span class="dv">100</span>) 
     <span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="dv">4</span>) {
         predicted.y[i] &lt;-<span class="st"> </span>intercept <span class="op">+</span><span class="st"> </span>slope <span class="op">*</span><span class="st"> </span>x[i]
         y[i] <span class="op">~</span><span class="st"> </span><span class="kw">dnorm</span>(predicted.y[i], <span class="dt">sd =</span> sigma)
@@ -113,7 +113,7 @@ model &lt;-<span class="st"> </span><span class="kw">nimbleModel</span>(mc,
 
 </div>
 <ul>
-<li>Think of each line of BUGS language code as declaring one or mode <em>nodes</em>.</li>
+<li>Think of each line of BUGS language code as declaring one or more <em>nodes</em>.</li>
 </ul>
 </div>
 <div id="get-and-set-values" class="slide section level1">
@@ -167,7 +167,7 @@ model<span class="op">$</span>y</code></pre></div>
 <p>Results from <code>model$getDependencies</code> are in <em>topologically sorted</em> order:</p>
 <ul>
 <li>If you calculate them in order, you'll get correct results.</li>
-<li>E.g <code>predicted.y[2]</code> comes before <code>y[2]</code>.</li>
+<li>E.g., <code>predicted.y[2]</code> comes before <code>y[2]</code>.</li>
 </ul>
 </div>
 <div id="nodes-vs.-variables" class="slide section level1">
@@ -185,11 +185,11 @@ model<span class="op">$</span>y</code></pre></div>
 </ul>
 <p>Some other definitions:</p>
 <ul>
-<li>parameter: an unknown quantity in the model that is represented as a random variable and will generally be estimated in an algorithm, e.g. <code>mu[1]</code> in the (reparameterized) litters model</li>
-<li>data: a known quantity in a model, also represented as a random variable, e.g., <code>r[1, 1], ..., r[1, 16], ...</code></li>
-<li>constants: other fixed quantities involved in the model, e.g., <code>G</code> in the litters model</li>
-<li>node: an element in the model graph representing data, parameter, or a deterministic quantity that is a function of other quantities in the model, e.g., <code>mu[1]</code>, <code>mu[2]</code>, or <code>p[1, 5]</code> in the litters model</li>
-<li>variable: a collection of one or more nodes with the same name, e.g., <em>mu</em> or <em>r</em> in the litters model.</li>
+<li>parameter: an unknown quantity in the model that is represented as a random variable and will generally be estimated in an algorithm, e.g. <code>slope</code> in the regresson model</li>
+<li>data: a known quantity in a model, also represented as a random variable, e.g., <code>y[1], ..., y[4]</code></li>
+<li>constants: other fixed quantities involved in the model, e.g., <code>M</code> in the occupancy model.litters model</li>
+<li>node: an element in the model graph representing data, parameter, or a deterministic quantity that is a function of other quantities in the model, e.g., <code>y[1]</code>, <code>z[3]</code> or <code>beta1</code> in the occupancy model, or <code>y[1, 1:J]</code> in the marginalized occupancy model</li>
+<li>variable: a collection of one or more nodes with the same name, e.g., <em>z</em> or <em>y</em> in the occupancy model</li>
 </ul>
 </div>
 <div id="how-vectorizing-changes-nodes" class="slide section level1">
@@ -260,21 +260,21 @@ model<span class="op">$</span>y</code></pre></div>
 </div>
 <div id="understanding-lifted-nodes" class="slide section level1">
 <h1>Understanding <em>lifted nodes</em></h1>
-<p>Consider the following version of our linear regression model.</p>
+<p>Consider the following version of our linear regression model, using <code>sigma2</code> rather than <code>sigma</code>.</p>
 <p>There is no <code>predicted.y[i]</code>. The expression from that is directly in the <code>dnorm</code> for <code>y[i]</code>.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">mc3 &lt;-<span class="st"> </span><span class="kw">nimbleCode</span>({
     intercept <span class="op">~</span><span class="st"> </span><span class="kw">dnorm</span>(<span class="dv">0</span>, <span class="dt">sd =</span> <span class="dv">1000</span>)
     slope <span class="op">~</span><span class="st"> </span><span class="kw">dnorm</span>(<span class="dv">0</span>, <span class="dt">sd =</span> <span class="dv">1000</span>)
-    sigma <span class="op">~</span><span class="st"> </span><span class="kw">dunif</span>(<span class="dv">0</span>, <span class="dv">100</span>)
+    sigma2 <span class="op">~</span><span class="st"> </span><span class="kw">dunif</span>(<span class="dv">0</span>, <span class="dv">100</span>)
     <span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="dv">4</span>) {
-        y[i] <span class="op">~</span><span class="st"> </span><span class="kw">dnorm</span>(intercept <span class="op">+</span><span class="st"> </span>slope <span class="op">*</span><span class="st"> </span>x[i], <span class="dt">sd =</span> sigma)
+        y[i] <span class="op">~</span><span class="st"> </span><span class="kw">dnorm</span>(intercept <span class="op">+</span><span class="st"> </span>slope <span class="op">*</span><span class="st"> </span>x[i], <span class="dt">var =</span> sigma2)
     }
 })
 model3 &lt;-<span class="st"> </span><span class="kw">nimbleModel</span>(mc3, 
                       <span class="dt">data =</span> <span class="kw">list</span>(<span class="dt">y =</span> <span class="kw">rnorm</span>(<span class="dv">4</span>)),
                       <span class="dt">inits =</span> <span class="kw">list</span>(<span class="dt">intercept =</span> <span class="fl">0.5</span>, 
                                   <span class="dt">slope =</span> <span class="fl">0.2</span>, 
-                                  <span class="dt">sigma =</span> <span class="dv">1</span>,
+                                  <span class="dt">sigma2 =</span> <span class="dv">1</span>,
                                   <span class="dt">x =</span> <span class="kw">c</span>(<span class="fl">0.1</span>, <span class="fl">0.2</span>, <span class="fl">0.3</span>, <span class="fl">0.4</span>)))</code></pre></div>
 <pre><code>## defining model...</code></pre>
 <pre><code>## building model...</code></pre>
@@ -286,20 +286,43 @@ model3 &lt;-<span class="st"> </span><span class="kw">nimbleModel</span>(mc3,
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">model3<span class="op">$</span><span class="kw">getNodeNames</span>()</code></pre></div>
 <pre><code>##  [1] &quot;intercept&quot;                                       
 ##  [2] &quot;slope&quot;                                           
-##  [3] &quot;sigma&quot;                                           
-##  [4] &quot;lifted_intercept_plus_slope_times_x_oBi_cB_L5[1]&quot;
-##  [5] &quot;lifted_intercept_plus_slope_times_x_oBi_cB_L5[2]&quot;
-##  [6] &quot;lifted_intercept_plus_slope_times_x_oBi_cB_L5[3]&quot;
-##  [7] &quot;lifted_intercept_plus_slope_times_x_oBi_cB_L5[4]&quot;
-##  [8] &quot;y[1]&quot;                                            
-##  [9] &quot;y[2]&quot;                                            
-## [10] &quot;y[3]&quot;                                            
-## [11] &quot;y[4]&quot;</code></pre>
-<p>NIMBLE has created nodes in the role of <code>predicted.y[i]</code>.</p>
+##  [3] &quot;sigma2&quot;                                          
+##  [4] &quot;lifted_sqrt_oPsigma2_cP&quot;                         
+##  [5] &quot;lifted_intercept_plus_slope_times_x_oBi_cB_L5[1]&quot;
+##  [6] &quot;lifted_intercept_plus_slope_times_x_oBi_cB_L5[2]&quot;
+##  [7] &quot;lifted_intercept_plus_slope_times_x_oBi_cB_L5[3]&quot;
+##  [8] &quot;lifted_intercept_plus_slope_times_x_oBi_cB_L5[4]&quot;
+##  [9] &quot;y[1]&quot;                                            
+## [10] &quot;y[2]&quot;                                            
+## [11] &quot;y[3]&quot;                                            
+## [12] &quot;y[4]&quot;</code></pre>
+<p>NIMBLE has created nodes in the role of <code>predicted.y[i]</code>. It has also created a node for the standard deviation of errors that go into the data.</p>
 <p>These are called <em>lifted nodes</em>. There were created by lifting an expression out of a parameter for a distribution and creating a deterministic node for that expression.</p>
 </div>
-<div id="model-generic-programming" class="slide section level1">
-<h1>Model-generic programming</h1>
+<div id="model-generic-programming-concrete-example" class="slide section level1">
+<h1>Model-generic programming: concrete example</h1>
+<p>If we change <code>sigma2</code> and then directly try to work with <code>y</code>, we'll cause (silent errors) because the lifted standard deviation has not been updated.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">model3<span class="op">$</span>sigma2 &lt;-<span class="st"> </span><span class="dv">100</span>
+model3<span class="op">$</span>lifted_sqrt_oPsigma2_cP</code></pre></div>
+<pre><code>## [1] 1</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">model3<span class="op">$</span><span class="kw">simulate</span>(<span class="st">'y'</span>, <span class="dt">includeData =</span> <span class="ot">TRUE</span>)
+<span class="kw">summary</span>(model3<span class="op">$</span>y)</code></pre></div>
+<pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+## 0.07106 0.34697 0.62859 0.77281 1.05443 1.76300</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">depNodes &lt;-<span class="st"> </span>model3<span class="op">$</span><span class="kw">getDependencies</span>(<span class="st">'sigma2'</span>, <span class="dt">self =</span> <span class="ot">FALSE</span>)
+depNodes</code></pre></div>
+<pre><code>## [1] &quot;lifted_sqrt_oPsigma2_cP&quot; &quot;y[1]&quot;                   
+## [3] &quot;y[2]&quot;                    &quot;y[3]&quot;                   
+## [5] &quot;y[4]&quot;</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">model3<span class="op">$</span><span class="kw">simulate</span>(depNodes, <span class="dt">includeData =</span> <span class="ot">TRUE</span>)
+model3<span class="op">$</span>lifted_sqrt_oPsigma2_cP</code></pre></div>
+<pre><code>## [1] 10</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">summary</span>(model3<span class="op">$</span>y)</code></pre></div>
+<pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+## -13.757  -8.437  -6.233  -7.383  -5.178  -3.308</code></pre>
+</div>
+<div id="model-generic-programming-more-generally..." class="slide section level1">
+<h1>Model-generic programming: More generally...</h1>
 <p>Say we want a function that simulates all parts of a model that depend on some input nodes and then returns the corresponding summed log probability. I will call this part of the model &quot;downstream&quot;.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">simulate_downstream &lt;-<span class="st"> </span><span class="cf">function</span>(model, nodes) {
   downstream_nodes &lt;-<span class="st"> </span>model<span class="op">$</span><span class="kw">getDependencies</span>(nodes, <span class="dt">downstream =</span> <span class="ot">TRUE</span>)
@@ -310,10 +333,10 @@ model3 &lt;-<span class="st"> </span><span class="kw">nimbleModel</span>(mc3,
 <p>Notice that this function will work with <em>any</em> model and <em>any</em> set of input nodes.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">model<span class="op">$</span>y</code></pre></div>
 <pre><code>## [1] -25.67480  61.85636  10.04617 -15.95637</code></pre>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">simulate_downstream</span>(model, <span class="st">'sigma'</span>)</code></pre></div>
-<pre><code>## [1] -25.46391</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">simulate_downstream</span>(model3, <span class="st">'sigma2'</span>)</code></pre></div>
+<pre><code>## [1] -18.0496</code></pre>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">model<span class="op">$</span>y</code></pre></div>
-<pre><code>## [1] -11.907474  32.533050 -63.379929   1.632887</code></pre>
+<pre><code>## [1] -25.67480  61.85636  10.04617 -15.95637</code></pre>
 <p>In this case, the model doesn't have much hierarchical structure.</p>
 </div>
 <div id="always-use-graph-structure-in-model-generic-programming" class="slide section level1">

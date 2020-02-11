@@ -42,7 +42,7 @@ set.seed(2468)
 mc <- nimbleCode({
     intercept ~ dnorm(0, sd = 1000)
     slope ~ dnorm(0, sd = 1000)
-    sigma ~ dunif(0, 100)
+    sigma ~ dunif(0, 100) 
     for(i in 1:4) {
         predicted.y[i] <- intercept + slope * x[i]
         y[i] ~ dnorm(predicted.y[i], sd = sigma)
@@ -105,7 +105,7 @@ plot(model$graph, vertex.shape = "crectangle",
      edge.color = edge.color)
 ```
 
-- Think of each line of BUGS language code as declaring one or mode *nodes*.
+- Think of each line of BUGS language code as declaring one or more *nodes*.
 
 # Get and set values
 
@@ -167,7 +167,7 @@ For typical MCMC samplers, `model$getDependencies('beta[1]')` returns the nodes 
 Results from `model$getDependencies` are in *topologically sorted* order:
 
 - If you calculate them in order, you'll get correct results.
-- E.g `predicted.y[2]` comes before `y[2]`.
+- E.g., `predicted.y[2]` comes before `y[2]`.
 
 # Nodes vs. variables
 
@@ -184,11 +184,11 @@ In NIMBLE:
 
 Some other definitions: 
 
- - parameter: an unknown quantity in the model that is represented as a random variable and will generally be estimated in an algorithm, e.g. `mu[1]` in the (reparameterized) litters model
- - data: a known quantity in a model, also represented as a random variable, e.g., `r[1, 1], ..., r[1, 16], ...` 
- - constants: other fixed quantities involved in the model, e.g., `G` in the litters model
- - node: an element in the model graph representing data, parameter, or a deterministic quantity that is a function of other quantities in the model, e.g., `mu[1]`, `mu[2]`, or `p[1, 5]` in the litters model
- - variable: a collection of one or more nodes with the same name, e.g., *mu* or *r* in the litters model. 
+ - parameter: an unknown quantity in the model that is represented as a random variable and will generally be estimated in an algorithm, e.g. `slope` in the regresson model
+ - data: a known quantity in a model, also represented as a random variable, e.g., `y[1], ..., y[4]`
+ - constants: other fixed quantities involved in the model, e.g., `M` in the occupancy model.litters model
+ - node: an element in the model graph representing data, parameter, or a deterministic quantity that is a function of other quantities in the model, e.g., `y[1]`, `z[3]` or `beta1` in the occupancy model, or `y[1, 1:J]` in the marginalized occupancy model
+ - variable: a collection of one or more nodes with the same name, e.g., *z* or *y* in the occupancy model
 
 
 # How vectorizing changes nodes
@@ -265,23 +265,24 @@ model$y
 
 # Understanding *lifted nodes*
 
-Consider the following version of our linear regression model.
+Consider the following version of our linear regression model, using `sigma2` rather than `sigma`.
 
 There is no `predicted.y[i]`.  The expression from that is directly in the `dnorm` for `y[i]`.
+
 ```{r}
 mc3 <- nimbleCode({
     intercept ~ dnorm(0, sd = 1000)
     slope ~ dnorm(0, sd = 1000)
-    sigma ~ dunif(0, 100)
+    sigma2 ~ dunif(0, 100)
     for(i in 1:4) {
-        y[i] ~ dnorm(intercept + slope * x[i], sd = sigma)
+        y[i] ~ dnorm(intercept + slope * x[i], var = sigma2)
     }
 })
 model3 <- nimbleModel(mc3, 
                       data = list(y = rnorm(4)),
                       inits = list(intercept = 0.5, 
                                   slope = 0.2, 
-                                  sigma = 1,
+                                  sigma2 = 1,
                                   x = c(0.1, 0.2, 0.3, 0.4)))
 ```
 
@@ -291,12 +292,28 @@ model3 <- nimbleModel(mc3,
 model3$getNodeNames()
 ```
 
-NIMBLE has created nodes in the role of `predicted.y[i]`.
+NIMBLE has created nodes in the role of `predicted.y[i]`. It has also created a node for the standard deviation of errors that go into the data. 
 
 These are called *lifted nodes*.  There were created by lifting an expression out of a parameter for a distribution and creating a deterministic node for that expression.
 
 
-# Model-generic programming
+# Model-generic programming: concrete example
+
+If we change `sigma2` and then directly try to work with `y`, we'll cause (silent errors) because the lifted standard deviation has not been updated.
+
+```{r, lifted}
+model3$sigma2 <- 100
+model3$lifted_sqrt_oPsigma2_cP
+model3$simulate('y', includeData = TRUE)
+summary(model3$y)
+depNodes <- model3$getDependencies('sigma2', self = FALSE)
+depNodes
+model3$simulate(depNodes, includeData = TRUE)
+model3$lifted_sqrt_oPsigma2_cP
+summary(model3$y)
+```
+
+# Model-generic programming: More generally...
 
 
 Say we want a function that simulates all parts of a model that depend on some input nodes and then returns the corresponding summed log probability.  I will call this part of the model "downstream".
@@ -314,7 +331,7 @@ Notice that this function will work with *any* model and *any* set of input node
 
 ```{r}
 model$y
-simulate_downstream(model, 'sigma')
+simulate_downstream(model3, 'sigma2')
 model$y
 ```
 

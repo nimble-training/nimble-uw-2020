@@ -55,6 +55,8 @@ conf$printSamplers()
 ```{r customize-mcmc, fig.height=12, fig.width=10, fig.cap=''}
 conf <- configureMCMC(occ_model)
 params <- occ_model$getNodeNames(topOnly = TRUE)
+params
+
 conf$removeSamplers(params)
 for(p in params)
     conf$addSampler(p, type = 'slice')
@@ -113,12 +115,12 @@ Note the warning NIMBLE emitted. The Metropolis-Hastings adaptation scheme can s
 
 conf <- configureMCMC(occ_model)
 
-block <- c('alpha1','mean.p')
+block  <- c('alpha1','mean.p')
 for(p in block)
     conf$removeSamplers(p)
-conf$addSampler(block, type = 'RW_block',
+conf$addSampler(block , type = 'RW_block',
                        control = list(propCov = diag(c(.1^2, .01^2))))
-                                      
+
 occ_MCMC <- buildMCMC(conf)
 Cocc_MCMC <- compileNimble(occ_MCMC, project = occ_model, resetFunctions = TRUE)
 

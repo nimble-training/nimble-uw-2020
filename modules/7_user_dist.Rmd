@@ -170,11 +170,12 @@ Vectorizing calculations
 
 Vectorization in NIMBLE models:
 
-- Can make code more compact.
-- Can make model and MCMC building and compiling faster.
-- Can improve MCMC efficiency, but sometimes not by much.
-- Can hurt MCMC efficiency if done in the wrong places.
-   - Can cause additional dependencies and therefore additional calculations in MCMC steps
+ - Can make code more compact.
+ - Can make model and MCMC building and compiling faster.
+ - Can improve MCMC efficiency, but sometimes not by much.
+ - Can hurt MCMC efficiency if done in the wrong places.
+
+     - Can cause additional dependencies and therefore additional calculations in MCMC steps
 
 
 ```{r, fig.height=12, fig.width=10, fig.cap=''}
@@ -207,7 +208,7 @@ occ_code_vec <- nimbleCode({
 Run MCMC with the vectorized version:
 =====
 
-```{r}
+```{r, fig.height=12, fig.width=10, fig.cap=''}
 occ_mod_vec <- nimbleModel(occ_code_vec,
                          constants = occupancy_data,
                          inits = inits_saved)
